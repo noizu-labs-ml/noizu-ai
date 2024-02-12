@@ -2,11 +2,48 @@ defmodule NAITest do
   use ExUnit.Case
   doctest NAI
 
+  defmodule UserDefinedTask do
+    def execute_plan() do
+      :task_struct
+    end
+  end
+
+  def system_msg_do_plan(_) do
+    nil
+  end
+
   test "greets the world" do
     assert NAI.hello() == :world
   end
 
+  test "interface stub" do
+    system_msg_1 = nil
+    system_msg_2 = nil
+    user_msg_1 = nil
+    user_msg_2 = nil
+    llm_msg_1 = nil
+    a = NAI.chat()
+        |> NAI.Chat.message(system_msg_1)
+        |> NAI.Chat.message(user_msg_1)
+        |> NAI.Chat.message(llm_msg_1)
+        |> NAI.Chat.message(user_msg_2)
+        |> NAI.Chat.tag(:base)
+        |> NAI.Chat.message(system_msg_2)
+        |> NAI.Chat.with_model(NAI.Model.best(for: :plan))
+        |> NAI.Chat.set_stream(true, required: true)
+        |> NAI.Chat.tag(:plan)
+    assert %NAI{} = a
 
+    a_outcome = NAI.ChatResponse.body(a)
+    assert a_outcome == :nyi
+
+    b = NAI.Chat.checkout(a, :base)
+        |> NAI.Chat.message(system_msg_do_plan(a_outcome))
+        |> NAI.Chat.with_model(NAI.Model.fastest(for: UserDefinedTask.execute_plan(), params: :required))
+        |> NAI.Chat.tag(:execute)
+    b_outcome = NAI.ChatResponse.body(b)
+    assert b_outcome == :nyi
+  end
   #
   # NAI.list_models(subject \\ %NAI{})
   # NAI.provider(subject \\ %NAI{})
